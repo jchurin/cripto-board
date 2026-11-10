@@ -1,69 +1,159 @@
 import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
+import { MarketTable } from "@/components/MarketTable";
+import { Change } from "@/components/ui";
+import { getGlobal, getMarkets } from "@/lib/api";
+import { formatCompact, formatPrice } from "@/lib/format";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="space-y-8">
+      <section className="rise">
+        <p className="mb-2 text-sm font-medium text-accent">Crypto market, live</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+          Today&apos;s <span className="gradient-text">cryptocurrency</span> prices
+        </h1>
+        <p className="mt-3 max-w-2xl text-muted">
+          The top coins ranked by market capitalization, with prices streaming in real time.
+          Pick any coin to explore its full price history.
+        </p>
+      </section>
+
+      <Suspense fallback={<StatsSkeleton />}>
+        <Overview />
+      </Suspense>
+
+      <Suspense fallback={<TableSkeleton />}>
+        <Markets />
+      </Suspense>
+    </div>
+  );
+}
+
+async function Markets() {
+  const coins = await getMarkets().catch(() => null);
+  if (!coins) return <ErrorCard />;
+  return <MarketTable coins={coins} />;
+}
+
+async function Overview() {
+  const [global, coins] = await Promise.all([
+    getGlobal().catch(() => null),
+    getMarkets().catch(() => null),
+  ]);
+  if (!global || !coins) return null;
+
+  const ranked = coins.filter((c) => c.price_change_percentage_24h_in_currency != null);
+  const by24h = [...ranked].sort(
+    (a, b) => b.price_change_percentage_24h_in_currency! - a.price_change_percentage_24h_in_currency!,
+  );
+  const gainers = by24h.slice(0, 3);
+  const losers = by24h.slice(-3).reverse();
+
+  return (
+    <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <StatCard label="Total market cap" value={formatCompact(global.total_market_cap)}>
+        <Change value={global.market_cap_change_percentage_24h_usd} pill />
+        <span className="text-faint">24h</span>
+      </StatCard>
+      <StatCard label="24h volume" value={formatCompact(global.total_volume)}>
+        <span className="text-muted">{global.active_cryptocurrencies.toLocaleString("en-US")} active coins</span>
+      </StatCard>
+      <div className="glass rise rounded-2xl p-5">
+        <p className="text-xs uppercase tracking-wider text-muted">Dominance</p>
+        <Dominance label="BTC" value={global.btc_dominance} />
+        <Dominance label="ETH" value={global.eth_dominance} />
+      </div>
+      <div className="glass rise grid grid-cols-2 gap-4 rounded-2xl p-5">
+        <Movers title="Top gainers" coins={gainers} />
+        <Movers title="Top losers" coins={losers} />
+      </div>
+    </section>
+  );
+}
+
+function StatCard({ label, value, children }: { label: string; value: string; children: React.ReactNode }) {
+  return (
+    <div className="glass rise rounded-2xl p-5">
+      <p className="text-xs uppercase tracking-wider text-muted">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight tabular">{value}</p>
+      <div className="mt-2 flex items-center gap-2 text-sm">{children}</div>
+    </div>
+  );
+}
+
+function Dominance({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="mt-3">
+      <div className="mb-1.5 flex justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="tabular text-muted">{value.toFixed(1)}%</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+        <div className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2" style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function Movers({ title, coins }: { title: string; coins: Awaited<ReturnType<typeof getMarkets>> }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs uppercase tracking-wider text-muted">{title}</p>
+      <ul className="mt-2 space-y-2">
+        {coins.map((c) => (
+          <li key={c.id}>
+            <Link href={`/coin/${c.id}`} className="flex items-center gap-2 text-sm hover:text-white" title={`${c.name} · ${formatPrice(c.current_price)}`}>
+              <Image src={c.image} alt="" width={18} height={18} className="size-4.5 shrink-0 rounded-full" />
+              <span className="truncate uppercase text-muted">{c.symbol}</span>
+              <span className="ml-auto text-xs">
+                <Change value={c.price_change_percentage_24h_in_currency} />
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ErrorCard() {
+  return (
+    <div className="glass rounded-2xl p-10 text-center">
+      <p className="text-lg font-medium">Couldn&apos;t load market data</p>
+      <p className="mt-1 text-sm text-muted">The CoinGecko free API may be rate-limiting. Try again in a minute.</p>
+    </div>
+  );
+}
+
+function StatsSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="glass h-[132px] rounded-2xl p-5">
+          <div className="skeleton h-3 w-24" />
+          <div className="skeleton mt-4 h-8 w-36" />
+          <div className="skeleton mt-3 h-4 w-20" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      ))}
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="glass overflow-hidden rounded-2xl">
+      <div className="border-b border-line p-4"><div className="skeleton h-6 w-56" /></div>
+      {Array.from({ length: 10 }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 border-b border-line/60 px-5 py-4">
+          <div className="skeleton size-7 rounded-full" />
+          <div className="skeleton h-4 w-40" />
+          <div className="skeleton ml-auto h-4 w-24" />
+          <div className="skeleton h-4 w-16" />
+          <div className="skeleton h-8 w-28" />
         </div>
-      </main>
+      ))}
     </div>
   );
 }
