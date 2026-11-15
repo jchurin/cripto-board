@@ -53,7 +53,7 @@ export function MarketTable({ coins }: { coins: MarketCoin[] }) {
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: key === "rank" ? 1 : -1 }));
 
   const th = (k: SortKey, children: React.ReactNode, className = "") => (
-    <th key={k} className={`px-3 py-3 font-medium ${className}`} aria-sort={sort.key === k ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+    <th key={k} className={`px-2 py-3 font-medium sm:px-3 ${className}`} aria-sort={sort.key === k ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button
         onClick={() => toggle(k)}
         className={`inline-flex items-center gap-1 transition-colors hover:text-ink ${sort.key === k ? "text-ink" : ""}`}
@@ -67,7 +67,7 @@ export function MarketTable({ coins }: { coins: MarketCoin[] }) {
   return (
     <section className="glass rise overflow-hidden rounded-2xl">
       <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 className="text-base font-semibold">Top 100 by market cap</h2>
           <LiveBadge state={state} />
           {liveCount > 0 && <span className="hidden text-xs text-faint md:inline">{liveCount} streaming</span>}
@@ -87,18 +87,18 @@ export function MarketTable({ coins }: { coins: MarketCoin[] }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] text-sm">
+        <table className="w-full text-sm lg:min-w-[880px]">
           <thead className="text-left text-xs uppercase tracking-wider text-muted">
             <tr className="border-b border-line">
-              {th("rank", "#", "w-14 pl-5")}
-              <th className="px-3 py-3 font-medium">Coin</th>
-              {th("price", "Price", "text-right [&>button]:flex-row-reverse")}
-              {th("h1", "1h", "text-right [&>button]:flex-row-reverse")}
-              {th("h24", "24h", "text-right [&>button]:flex-row-reverse")}
-              {th("d7", "7d", "text-right [&>button]:flex-row-reverse")}
-              {th("mcap", "Market cap", "text-right [&>button]:flex-row-reverse")}
-              {th("volume", "Volume 24h", "text-right [&>button]:flex-row-reverse")}
-              <th className="px-3 py-3 pr-5 text-right font-medium">Last 7 days</th>
+              {th("rank", "#", "hidden w-14 pl-5 sm:table-cell")}
+              <th className="w-full py-3 pl-4 pr-2 font-medium sm:px-3">Coin</th>
+              {th("price", "Price", "pr-4 text-right sm:pr-3 [&>button]:flex-row-reverse")}
+              {th("h1", "1h", "hidden text-right sm:table-cell [&>button]:flex-row-reverse")}
+              {th("h24", "24h", "hidden text-right sm:table-cell [&>button]:flex-row-reverse")}
+              {th("d7", "7d", "hidden text-right sm:table-cell [&>button]:flex-row-reverse")}
+              {th("mcap", "Market cap", "hidden text-right md:table-cell [&>button]:flex-row-reverse")}
+              {th("volume", "Volume 24h", "hidden text-right lg:table-cell [&>button]:flex-row-reverse")}
+              <th className="hidden px-3 py-3 pr-5 text-right font-medium lg:table-cell">Last 7 days</th>
             </tr>
           </thead>
           <tbody>
@@ -107,24 +107,30 @@ export function MarketTable({ coins }: { coins: MarketCoin[] }) {
               const spark = c.sparkline_in_7d?.price ?? [];
               return (
                 <tr key={c.id} className="group relative border-b border-line/60 transition-colors last:border-0 hover:bg-white/[0.035]">
-                  <td className="px-3 py-3 pl-5 text-muted tabular">{c.market_cap_rank}</td>
-                  <td className="px-3 py-3">
-                    <Link href={`/coin/${c.id}`} className="flex items-center gap-3 after:absolute after:inset-0">
+                  <td className="hidden px-3 py-3 pl-5 text-muted tabular sm:table-cell">{c.market_cap_rank}</td>
+                  <td className="w-full max-w-0 py-3 pl-4 pr-2 sm:px-3">
+                    <Link href={`/coin/${c.id}`} title={c.name} className="flex min-w-0 items-center gap-2.5 after:absolute after:inset-0 sm:gap-3">
                       <Image src={c.image} alt="" width={28} height={28} className="size-7 shrink-0 rounded-full" />
-                      <span className="font-medium text-ink group-hover:text-white">{c.name}</span>
-                      <span className="text-xs uppercase text-faint">{c.symbol}</span>
-                      {r.live && <span className="size-1.5 rounded-full bg-up" title="Live price" />}
+                      <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-3">
+                        <span className="truncate font-medium text-ink group-hover:text-white">{c.name}</span>
+                        <span className="flex min-w-0 shrink-[4] items-center gap-1.5 text-xs uppercase text-faint">
+                          <span className="tabular sm:hidden">{c.market_cap_rank}</span>
+                          <span className="min-w-0 max-w-[6rem] truncate">{c.symbol}</span>
+                          {r.live && <span className="size-1.5 shrink-0 rounded-full bg-up" title="Live price" />}
+                        </span>
+                      </span>
                     </Link>
                   </td>
-                  <td className="px-3 py-3 text-right font-medium">
+                  <td className="whitespace-nowrap py-3 pl-2 pr-4 text-right font-medium sm:px-3">
                     <FlashPrice value={r.price} />
+                    <span className="block text-xs sm:hidden"><Change value={r.h24} /></span>
                   </td>
-                  <td className="px-3 py-3 text-right"><Change value={r.h1} /></td>
-                  <td className="px-3 py-3 text-right"><Change value={r.h24} /></td>
-                  <td className="px-3 py-3 text-right"><Change value={r.d7} /></td>
-                  <td className="px-3 py-3 text-right tabular">{formatCompact(r.mcap)}</td>
-                  <td className="px-3 py-3 text-right tabular text-muted">{formatCompact(r.volume)}</td>
-                  <td className="px-3 py-2 pr-5">
+                  <td className="hidden px-3 py-3 text-right sm:table-cell"><Change value={r.h1} /></td>
+                  <td className="hidden px-3 py-3 text-right sm:table-cell"><Change value={r.h24} /></td>
+                  <td className="hidden px-3 py-3 text-right sm:table-cell"><Change value={r.d7} /></td>
+                  <td className="hidden px-3 py-3 text-right tabular md:table-cell">{formatCompact(r.mcap)}</td>
+                  <td className="hidden px-3 py-3 text-right tabular text-muted lg:table-cell">{formatCompact(r.volume)}</td>
+                  <td className="hidden px-3 py-2 pr-5 lg:table-cell">
                     <div className="flex justify-end">
                       <Sparkline data={spark} up={spark.length > 1 ? spark.at(-1)! >= spark[0] : true} />
                     </div>
